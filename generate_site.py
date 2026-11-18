@@ -1,7 +1,8 @@
 import os
+import random
 from urllib.parse import quote
 
-# 1. 서울 25개 구 및 동 데이터
+# 1. 서울 지역 데이터
 seoul_data = {
     'jongno': {'name': '종로구', 'dongs': ['청운동', '효자동', '사직동', '삼청동', '부암동', '평창동', '무악동', '교남동', '가회동', '종로1.2.3.4가동', '종로5.6가동', '이화동', '혜화동', '창신1동', '창신2동', '창신3동', '숭인1동', '숭인2동']},
     'jung': {'name': '중구', 'dongs': ['소공동', '회현동', '명동', '필동', '장충동', '광희동', '을지로동', '신당동', '다산동', '약수동', '청구동', '동화동', '황학동', '중림동']},
@@ -34,18 +35,63 @@ base_url = "https://sudo-therapy.netlify.app"
 base_dir = "output"
 os.makedirs(base_dir, exist_ok=True)
 
-# 2. 전체 지역 목록(chips) 생성 (메인 및 모든 지역 페이지에 동일하게 들어갈 링크 블록)
-all_regions = []
-for gu_key, gu_info in seoul_data.items():
-    all_regions.append(gu_info['name'])
-    all_regions.extend(gu_info['dongs'])
+# 2. 다변화(Spinning)용 데이터 풀 (SEO 중복문서 방지용)
+leads = [
+    "씻을 기운조차 없는 날이 있죠. 제휴 업체가 편안함을 안고 {dong}까지 갑니다.",
+    "끝나고 캐모마일 차 한 잔이면 밤이 짧아지는 날. {dong} 고객님을 위한 케어입니다.",
+    "복잡한 일상에서 벗어나고 싶은 저녁, {dong}에서 프리미엄 스웨디시를 경험해보세요.",
+    "조용히 위로받고 싶은 날, 전문 테라피스트가 {dong}으로 방문합니다.",
+    "어깨가 뭉치고 피로가 쌓인 하루의 끝, {dong} 맞춤형 케어로 힐링하세요."
+]
 
-chips_html = ""
-for region in all_regions:
-    # URL 인코딩을 통해 안전한 주소 생성
-    chips_html += f'<a href="{base_url}/{quote(region)}/">{region}</a>\n'
+intro_phrases = [
+    "집게핀으로 대충 올린 날.", "발바닥이 뜨거운 날.", "어제 요가를 했는데 어깨가 더 뭉친 날.",
+    "머리가 복잡해서 아무 생각도 하고 싶지 않은 날.", "오른손만 저리고 뻐근한 날.", 
+    "향이 오래 남을까 걱정되는 날.", "누군가의 따뜻한 손길이 필요한 날."
+]
 
-# 3. 공통 CSS 및 헤더/푸터 설정 (유지보수를 위해 변수로 분리)
+chat_pool = [
+    ("아로마 오일 테라피는 향이 세지 않나요?", "향이 먼저 들어오고 손이 뒤따르는 정도입니다."),
+    ("머리를 수건으로 감싼 채인데 괜찮나요?", "네. 그 상태 그대로 문만 열어 주시면 됩니다."),
+    ("스페셜 테라피도 오일로 하나요?", "세 코스 모두 프리미엄 오일을 씁니다."),
+    ("받기 전에 꼭 씻어야 하나요?", "꼭 하지 않으셔도 됩니다. 편한 대로 하세요."),
+    ("끝나고 미지근한 물을 마셔도 되나요?", "네, 됩니다. 따뜻한 것 한 잔을 드셔도 좋고, 그대로 잠드셔도 됩니다."),
+    ("발바닥이 뜨거운데 괜찮나요?", "네, 풋케어를 중심으로 시간을 더 써드립니다."),
+    ("중간에 압을 조절해 주시나요?", "네, 손님이 원하시는 대로 바로 맞춰 진행합니다.")
+]
+
+review_pool = [
+    ("H님", "스페셜 테라피 120분", "손목을 조심히 다뤄 주는 점이 좋았어요. 제가 불편해하는 곳이라 더 기억에 남죠."),
+    ("진OO", "아로마 오일 테라피 120분", "아이와 하루 종일 놀아 준 뒤였어요. 이번엔 제가 쉬는 순서라 반가웠죠."),
+    ("곽OO", "아로마 오일 테라피 60분", "쓰던 베개로 받으니 마음이 편했어요. 높이가 익숙해서 더 그랬겠죠."),
+    ("손OO", "아로마 오일 테라피 60분", "식탁 위에 휴대폰을 뒤집어 놨어요. 울려도 보러 가지 않기로 했죠. 생각보다 어렵지 않았어요."),
+    ("이OO", "스웨디시 순환 테라피 90분", "자꾸 한숨 쉬던 날이었어요. 마지막에는 편안한 숨이 나왔네요."),
+    ("박OO", "스페셜 테라피 90분", "오일 온도가 닿는 순간 안심됐어요. 차갑지 않으니 움찔할 일도 없었고요.")
+]
+
+faq_pool = [
+    ("오일 냄새 오래 가나요", "세 코스 모두 오일을 씁니다. 걱정되면 문자에 적어 주세요."),
+    ("숙소도 되나요", "네, 호텔이나 숙소로도 방문 가능합니다."),
+    ("휴일도 되나요", "네, 주말 및 공휴일에도 갑니다."),
+    ("처음인데 뭘 준비하나요", "없습니다. 편안한 마음이면 충분합니다."),
+    ("말 안 해도 되나요", "네. 말 없이 조용히 받으셔도 됩니다."),
+    ("10시 넘어도 되나요", "네, 늦은 밤에도 예약 일정에 맞춰 갑니다.")
+]
+
+rules_pool = [
+    "약속한 시간에 맞춰 갑니다. 늦으면 먼저 문자로 알립니다.",
+    "문자를 보내면 상담 담당자가 10분 안에 답합니다.",
+    "도착 전에 문자로 한 번 더 알립니다.",
+    "향이 부담스러우면 무향 오일로 진행합니다.",
+    "아프거나 불편한 곳은 그 자리에 시간을 더 씁니다.",
+    "정해진 시간 전에 끝내지 않습니다."
+]
+
+# 3. 전체 지역 칩스(네비게이션 링크) 생성
+all_regions = [info['name'] for info in seoul_data.values()] + [d for info in seoul_data.values() for d in info['dongs']]
+chips_html = "".join([f'<a href="{base_url}/{quote(reg)}/">{reg}</a>\n' for reg in all_regions])
+
+# CSS 스타일 유지
 COMMON_CSS = """
 :root{--mint:#48c8c0;--mint-d:#2aa9a1;--mint-l:#f3fbfa;--ink:#202020;--sub:#7d8387;--soft:#a0a4a4;--line:#e6e8ea;--gray:#f9f9f9;--fill:#f1f2f3}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -74,31 +120,65 @@ h2 em{font-style:normal;color:var(--mint-d)}
 .companies-grid a:hover, .companies-grid a:active { border-color:var(--mint); box-shadow:0 10px 22px -12px rgba(72,200,192,.4); }
 .companies-grid h3 { font-size:16px; color:var(--ink); margin-bottom:4px; font-weight:800; }
 .companies-grid p { font-size:15px; color:var(--mint-d); font-weight:700; }
-/* 지역 칩 스타일 추가 */
+.chat{list-style:none;margin:26px auto 0;max-width:520px;display:grid;gap:10px;text-align:left}
+.chat li{max-width:86%;padding:12px 16px;border-radius:18px;font-size:14.5px;line-height:1.6;color:#3a3f43;background:var(--fill);border-bottom-left-radius:6px;justify-self:start}
+.chat li.me{background:var(--mint-l);border:1px solid #cdeeeb;border-bottom-left-radius:18px;border-bottom-right-radius:6px;justify-self:end;color:var(--ink)}
+.chat li small{display:block;font-size:11.5px;color:var(--soft);margin-bottom:3px;font-weight:700}
+.check{list-style:none;margin:26px auto 0;max-width:560px;text-align:left;display:grid;gap:10px}
+.check li{position:relative;padding:14px 16px 14px 44px;background:#fff;border:1px solid var(--line);border-radius:12px;font-size:15px;font-weight:600}
+.check li::before{content:"";position:absolute;left:16px;top:19px;width:7px;height:12px;border:solid var(--mint);border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.strip{display:grid;gap:12px;margin:26px auto 0;max-width:560px;text-align:left;grid-template-columns:1fr 1fr}
+.strip figure{background:#fff;border-radius:16px;padding:20px 18px;border:1px solid var(--line);display:grid;gap:14px;align-content:space-between}
+.strip blockquote{font-size:15px;line-height:1.7;color:#3a3f43}
+.strip figcaption{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--sub)}
+.faq{display:grid;gap:12px;margin:26px auto 0;max-width:560px;text-align:left;grid-template-columns:1fr 1fr}
+.faq div{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 18px}
+.faq .q{font-weight:800;font-size:15.5px;margin-bottom:8px}
+.faq .a{color:var(--sub);font-size:14.5px}
 .chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:26px auto 0;max-width:560px}
 .chips a{display:flex;align-items:center;justify-content:center;min-height:44px;background:#fff;border:1px solid var(--line);border-radius:999px;font-size:13.5px;font-weight:600;padding:4px 6px;transition:background .15s}
 .chips a:active{background:var(--mint);color:#fff;border-color:var(--mint)}
 footer{background:#2b2f33;color:#fff;padding:40px 0 48px;text-align:center}
 .fab{position:fixed;right:16px;bottom:18px;z-index:30;width:66px;height:66px;border-radius:50%;background:var(--mint);color:#fff;display:grid;place-items:center;text-align:center;font-size:12px;font-weight:800;line-height:1.2}
-@media(max-width:480px) { .companies-grid { grid-template-columns:1fr; } }
+@media(max-width:480px) { .companies-grid, .strip, .faq { grid-template-columns:1fr; } }
 @media(min-width:720px){.hero{padding-top:84px}.chips{grid-template-columns:repeat(5,1fr)}}
 """
 
-# 4. 메인 페이지 생성 로직 (출장마사지 키워드 제외)
-main_template = f"""<!doctype html>
+# HTML 템플릿 생성기 (실행 시마다 랜덤 콘텐츠 생성)
+def generate_html(dong_name, url_path, is_main=False):
+    # 각 섹션별 랜덤 콘텐츠 조합 (유사문서 회피용)
+    lead_text = random.choice(leads).format(dong=dong_name)
+    intro = random.choice(intro_phrases)
+    
+    chats = random.sample(chat_pool, 3)
+    chat_html = "".join([f'<li><small>손님</small>{q}</li><li class="me"><small>수도테라피</small>{a}</li>' for q, a in chats])
+    
+    reviews = random.sample(review_pool, 4)
+    reviews_html = "".join([f'<figure><blockquote>{txt}</blockquote><figcaption><span><b>{name}</b><br>{course}</span></figcaption></figure>' for name, course, txt in reviews])
+    
+    faqs = random.sample(faq_pool, 4)
+    faq_html = "".join([f'<div><p class="q">{q}</p><p class="a">{a}</p></div>' for q, a in faqs])
+    
+    rules = random.sample(rules_pool, 4)
+    rules_html = "".join([f'<li>{r}</li>' for r in rules])
+
+    title = "수도테라피 | 프리미엄 스웨디시 홈테라피" if is_main else f"{dong_name} 프리미엄 테라피 | 수도테라피"
+    desc = "수도테라피에서 검증된 프리미엄 홈테라피 업체를 만나보세요." if is_main else f"{dong_name} 수도테라피에서 검증된 테라피 업체를 만나보세요. 끝나고 캐모마일 차 한 잔이면 밤이 짧아지는 날 {dong_name}으로 갑니다."
+
+    return f"""<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>수도테라피 | 프리미엄 스웨디시 홈테라피</title>
-<meta name="description" content="수도테라피에서 검증된 프리미엄 홈테라피 업체를 만나보세요. 끝나고 캐모마일 차 한 잔이면 밤이 짧아지는 날에도 갑니다.">
-<link rel="canonical" href="{base_url}/">
+<title>{title}</title>
+<meta name="description" content="{desc}">
+<link rel="canonical" href="{url_path}">
 <link rel="icon" href="/favicon.ico">
 <meta property="og:type" content="website">
-<meta property="og:title" content="수도테라피 | 프리미엄 스웨디시 홈테라피">
-<meta property="og:description" content="수도테라피에서 검증된 프리미엄 홈테라피 업체를 만나보세요. 끝나고 캐모마일 차 한 잔이면 밤이 짧아지는 날에도 갑니다.">
-<meta property="og:url" content="{base_url}/">
-<meta property="og:image" content="{base_url}/img/og-root.jpg">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{desc}">
+<meta property="og:url" content="{url_path}">
+<meta property="og:image" content="https://sudo-therapy.netlify.app/img/og-root.jpg">
 
 <script>
   document.addEventListener("DOMContentLoaded", function() {{
@@ -134,13 +214,14 @@ main_template = f"""<!doctype html>
 
 <section class="hero">
 <div class="wrap">
-<h1 class="serif">프리미엄 테라피<br>스웨디시 홈테라피</h1>
-<p class="lead">씻을 기운조차 없는 날이 있죠. 편안함을 안고 갑니다.</p>
+<h1 class="serif">{dong_name} 프리미엄 테라피<br>스웨디시 홈테라피</h1>
+<p class="lead">{lead_text}</p>
 <div class="cta"><a class="pill lg" href="#companies">업체 바로보기</a></div>
 </div>
 </section>
 
-<section id="companies" class="sec gray"><div class="wrap"><h2 class="serif"><em>수도테라피</em> 제휴 업체</h2><p class="sub">원하시는 업체를 누르시면 바로 연결됩니다.</p>
+<!-- 업체 목록 -->
+<section id="companies" class="sec gray"><div class="wrap"><h2 class="serif"><em>{dong_name}</em> 제휴 업체</h2><p class="sub">원하시는 업체를 누르시면 바로 연결됩니다.</p>
 <div class="companies-grid">
   <a href="tel:0507-1280-3296"><h3>퀸즈홈테라피</h3><p>0507-1280-3296</p></a>
   <a href="tel:0507-1280-3140"><h3>한국미인테라피</h3><p>0507-1280-3140</p></a>
@@ -151,121 +232,67 @@ main_template = f"""<!doctype html>
 </div>
 </div></section>
 
-<!-- 모든 지역 칩스 영역 -->
+<!-- 챗 로그 -->
+<section class="sec"><div class="wrap"><h2 class="serif"><em>이런 날</em> 이런 몸</h2><p class="sub">{intro} {dong_name} 고객님들이 주로 남기시는 문의입니다.</p>
+<ul class="chat">
+{chat_html}
+</ul>
+</div></section>
+
+<!-- 리뷰 -->
+<section class="sec gray"><div class="wrap"><h2 class="serif"><em>받아 본 분들의</em> 리뷰</h2>
+<div class="strip">
+{reviews_html}
+</div>
+</div></section>
+
+<!-- 룰 / 가이드 -->
+<section class="sec"><div class="wrap"><h2 class="serif"><em>지키는 것,</em> 하지 않는 것</h2>
+<ul class="check">
+{rules_html}
+</ul>
+</div></section>
+
+<!-- FAQ -->
+<section class="sec gray"><div class="wrap"><h2 class="serif"><em>궁금한</em> 것부터</h2>
+<div class="faq">
+{faq_html}
+</div>
+</div></section>
+
+<!-- 모든 지역 칩스 영역 (내부 링킹) -->
 <section class="sec"><div class="wrap"><h2 class="serif"><em>다른</em> 동네</h2><p class="sub">원하시는 동네 이름을 누르면 그곳 안내로 이어집니다.</p>
 <div class="chips">
 {chips_html}
 </div></div></section>
 
 <footer>
-<div class="wrap"><div class="logo" style="justify-content:center;color:#fff;font-size:19px;"><b></b>수도테라피</div><p style="color:#b8bcc0;font-size:14px;margin-top:10px;">프리미엄 테라피 안내</p></div>
+<div class="wrap"><div class="logo" style="justify-content:center;color:#fff;font-size:19px;"><b></b>수도테라피</div><p style="color:#b8bcc0;font-size:14px;margin-top:10px;">{dong_name} 프리미엄 테라피 안내</p></div>
 </footer>
 <a class="fab" href="#companies">업체<br>보기</a>
 </body>
 </html>
 """
 
-# 메인 페이지 파일 쓰기
-with open(os.path.join(base_dir, "index.html"), "w", encoding="utf-8") as f:
-    f.write(main_template)
-
-# 5. 서브 페이지(지역) HTML 템플릿 (출장마사지 제외)
-sub_template = """<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>{dong} 프리미엄 테라피 | 수도테라피</title>
-<meta name="description" content="{dong} 수도테라피에서 검증된 프리미엄 홈테라피 업체를 만나보세요. 끝나고 캐모마일 차 한 잔이면 밤이 짧아지는 날 {dong}으로 갑니다.">
-<link rel="canonical" href="{url}">
-<link rel="icon" href="/favicon.ico">
-<meta property="og:type" content="website">
-<meta property="og:title" content="{dong} 프리미엄 테라피 | 수도테라피">
-<meta property="og:description" content="{dong} 수도테라피에서 검증된 프리미엄 홈테라피 업체를 만나보세요. 끝나고 캐모마일 차 한 잔이면 밤이 짧아지는 날 {dong}으로 갑니다.">
-<meta property="og:url" content="{url}">
-<meta property="og:image" content="https://sudo-therapy.netlify.app/img/og-root.jpg">
-
-<script>
-  document.addEventListener("DOMContentLoaded", function() {{
-    const canonicalUrl = document.querySelector('link[rel="canonical"]')?.href || window.location.href;
-    const jsonLd = {{
-      "@context": "https://schema.org",
-      "@type": "ItemList",
-      "url": canonicalUrl,
-      "name": document.title,
-      "description": document.querySelector('meta[name="description"]')?.content || "",
-      "itemListElement": [
-        {{"@type": "LocalBusiness", "position": 1, "name": "퀸즈홈테라피", "telephone": "0507-1280-3296"}},
-        {{"@type": "LocalBusiness", "position": 2, "name": "한국미인테라피", "telephone": "0507-1280-3140"}},
-        {{"@type": "LocalBusiness", "position": 3, "name": "오늘밤테라피", "telephone": "0507-1280-3199"}},
-        {{"@type": "LocalBusiness", "position": 4, "name": "주주테라피", "telephone": "0507-1280-3197"}},
-        {{"@type": "LocalBusiness", "position": 5, "name": "기쁨테라피", "telephone": "0507-1280-3183"}},
-        {{"@type": "LocalBusiness", "position": 6, "name": "미인클럽테라피", "telephone": "0507-1280-3180"}}
-      ]
-    }};
-    const script = document.createElement('script');
-    script.type = "application/ld+json";
-    script.text = JSON.stringify(jsonLd);
-    document.head.appendChild(script);
-  }});
-</script>
-
-<style>
-{css}
-</style>
-</head>
-<body class="root">
-<header class="bar"><div class="wrap"><a class="logo" href="{base}/"><b></b>수도테라피</a><a class="pill" href="#companies">제휴 업체</a></div></header>
-
-<section class="hero">
-<div class="wrap">
-<h1 class="serif">{dong} 프리미엄 테라피<br>스웨디시 홈테라피</h1>
-<p class="lead">씻을 기운조차 없는 날이 있죠. {dong}까지 제휴 업체가 편안함을 안고 갑니다.</p>
-<div class="cta"><a class="pill lg" href="#companies">업체 바로보기</a></div>
-</div>
-</section>
-
-<section id="companies" class="sec gray"><div class="wrap"><h2 class="serif"><em>{dong}</em> 제휴 업체</h2><p class="sub">원하시는 업체를 누르시면 바로 연결됩니다.</p>
-<div class="companies-grid">
-  <a href="tel:0507-1280-3296"><h3>퀸즈홈테라피</h3><p>0507-1280-3296</p></a>
-  <a href="tel:0507-1280-3140"><h3>한국미인테라피</h3><p>0507-1280-3140</p></a>
-  <a href="tel:0507-1280-3199"><h3>오늘밤테라피</h3><p>0507-1280-3199</p></a>
-  <a href="tel:0507-1280-3197"><h3>주주테라피</h3><p>0507-1280-3197</p></a>
-  <a href="tel:0507-1280-3183"><h3>기쁨테라피</h3><p>0507-1280-3183</p></a>
-  <a href="tel:0507-1280-3180"><h3>미인클럽테라피</h3><p>0507-1280-3180</p></a>
-</div>
-</div></section>
-
-<!-- 서브 페이지에도 동일하게 지역 칩스 영역 삽입 -->
-<section class="sec"><div class="wrap"><h2 class="serif"><em>다른</em> 동네</h2><p class="sub">원하시는 동네 이름을 누르면 그곳 안내로 이어집니다.</p>
-<div class="chips">
-{chips}
-</div></div></section>
-
-<footer>
-<div class="wrap"><div class="logo" style="justify-content:center;color:#fff;font-size:19px;"><b></b>수도테라피</div><p style="color:#b8bcc0;font-size:14px;margin-top:10px;">{dong} 프리미엄 테라피 안내</p></div>
-</footer>
-<a class="fab" href="#companies">업체<br>보기</a>
-</body>
-</html>
-"""
-
-# 6. 구/동 단위로 서브페이지 폴더 및 HTML 생성 (Sitemap 연동)
+# 4. 파일 생성 실행
 sitemap_urls = [f"{base_url}/"]
 
+# 메인 페이지 생성 ('수도테라피'를 dong_name 위치에 넣음)
+with open(os.path.join(base_dir, "index.html"), "w", encoding="utf-8") as f:
+    f.write(generate_html("서울 전지역", f"{base_url}/", is_main=True))
+
+# 구/동 서브페이지 생성
 for gu_key, gu_info in seoul_data.items():
     gu_name = gu_info['name']
     
-    # 구(Gu) 폴더 생성 
     gu_folder = os.path.join(base_dir, gu_name)
     os.makedirs(gu_folder, exist_ok=True)
     gu_url = f"{base_url}/{quote(gu_name)}/"
     sitemap_urls.append(gu_url)
     
     with open(os.path.join(gu_folder, "index.html"), "w", encoding="utf-8") as f:
-        f.write(sub_template.format(dong=gu_name, url=gu_url, base=base_url, chips=chips_html, css=COMMON_CSS))
+        f.write(generate_html(gu_name, gu_url))
     
-    # 동(Dong) 폴더 생성
     for dong in gu_info['dongs']:
         dong_folder = os.path.join(base_dir, dong)
         os.makedirs(dong_folder, exist_ok=True)
@@ -273,9 +300,9 @@ for gu_key, gu_info in seoul_data.items():
         sitemap_urls.append(dong_url)
         
         with open(os.path.join(dong_folder, "index.html"), "w", encoding="utf-8") as f:
-            f.write(sub_template.format(dong=dong, url=dong_url, base=base_url, chips=chips_html, css=COMMON_CSS))
+            f.write(generate_html(dong, dong_url))
 
-# 7. Sitemap.xml 생성
+# 5. Sitemap & Robots 생성
 sitemap_content = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
 for url in sitemap_urls:
     sitemap_content += f"  <url>\n    <loc>{url}</loc>\n    <changefreq>weekly</changefreq>\n  </url>\n"
@@ -284,9 +311,7 @@ sitemap_content += '</urlset>'
 with open(os.path.join(base_dir, "sitemap.xml"), "w", encoding="utf-8") as f:
     f.write(sitemap_content)
 
-# 8. Robots.txt 생성
-robots_content = f"User-agent: *\nAllow: /\nSitemap: {base_url}/sitemap.xml\n"
 with open(os.path.join(base_dir, "robots.txt"), "w", encoding="utf-8") as f:
-    f.write(robots_content)
+    f.write(f"User-agent: *\nAllow: /\nSitemap: {base_url}/sitemap.xml\n")
 
-print("✅ 모든 메인/지역 페이지 및 sitemap.xml, robots.txt 생성이 완료되었습니다.")
+print("✅ 랜덤 스피닝이 적용된 모든 페이지 생성 완료!")

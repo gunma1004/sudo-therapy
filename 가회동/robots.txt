@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://sudo-therapy.netlify.app/sitemap.xml
